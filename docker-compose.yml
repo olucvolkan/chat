@@ -18,6 +18,7 @@ services:
       - chat_db
     ports:
       - "8080:8080"
+      - "4000:4000"
     environment:
       - NODE_ENV=development
       - NODE_OPTIONS=--max_old_space_size=2048

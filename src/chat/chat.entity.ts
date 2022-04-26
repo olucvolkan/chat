@@ -1,4 +1,4 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 export type ChatDocument = Chat & Document;
@@ -16,14 +16,19 @@ export class Chat {
   sender: string;
 
   @Prop({
-    required: [true, 'Recipient is required'],
+    required: [true, 'Recepient is required'],
   })
-  recipient: string;
+  recepient: string;
 
   @Prop({
     required: [true, 'Time is required'],
   })
-  time: string;
+  time: Date;
+
+  @Prop({
+    required: [true, 'isRead is required'],
+  })
+  isRead: boolean;
 
   constructor(chat?: Partial<Chat>) {
     Object.assign(this, chat);

@@ -1,44 +1,115 @@
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
+  WebSocketServer,
 } from '@nestjs/websockets';
-import { NestGateway } from '@nestjs/websockets/interfaces/nest-gateway.interface';
+import { Logger } from '@nestjs/common';
+import { Socket, Server } from 'socket.io';
+import { UserService } from '../user/user.service';
 import { ChatService } from './chat.service';
-import { Bind, UseInterceptors } from '@nestjs/common';
-import { Chat } from './chat.entity';
+import {
+  USER_STATUS_OFFLINE,
+  USER_STATUS_ONLINE,
+} from '../user/constants/user';
+import { parseAccessToken } from '../helper/helper';
 
-@WebSocketGateway()
-export class ChatGateway implements NestGateway {
-  constructor(private chatService: ChatService) {}
+@WebSocketGateway({
+  port: 4000,
+  transports: ['websocket'],
+})
+export class ChatGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
+  @WebSocketServer()
+  server: Server;
 
-  afterInit(server: any) {
-    // console.log('Init', server);
+  constructor(
+    private readonly userService: UserService,
+    private readonly chatService: ChatService,
+  ) {}
+
+  private logger: Logger = new Logger('AppGateway');
+  @SubscribeMessage('message')
+  async handleEvent(@MessageBody() message, @ConnectedSocket() client: Socket) {
+    const accessToken = parseAccessToken(client.request.headers.authorization);
+    this.logger.log(`message ${message.data}`);
+    const user = await this.userService.findByToken(accessToken);
+    await this.chatService.save(message, user);
+    const friendsList = await this.userService.getFriendsList(user.friends);
+    for (const friend of friendsList) {
+      const allMessages = await this.chatService.getAllMessages(friend);
+      const friendSocket = this.server.sockets.sockets.get(friend.socketId);
+      if (friendSocket) {
+        this.server.sockets.sockets.get(friend.socketId).emit('allMessages', {
+          allMessages: allMessages,
+        });
+      }
+    }
   }
 
-  handleConnection(socket: any) {
-    const query = socket.handshake.query;
-    console.log('Connect', query);
-    this.chatService.userConnected(query.userName, query.registrationToken);
-    process.nextTick(async () => {
-      socket.emit('allChats', await this.chatService.getChats());
+  afterInit(server: Server) {
+    this.logger.log('Init');
+  }
+
+  async handleDisconnect(client: Socket) {
+    const accessToken = parseAccessToken(client.request.headers.authorization);
+    this.logger.log(`Client disconnected: ${client.id}`);
+    const user = await this.userService.updateConnectedSocketId(
+      accessToken,
+      client.id,
+      USER_STATUS_OFFLINE,
+    );
+    const friendsList = await this.userService.getFriendsList(user.friends);
+    friendsList.forEach((friend) => {
+      if (user.friends.find((username) => username === friend.username)) {
+        const friendSocket = this.server.sockets.sockets.get(friend.socketId);
+        if (friendSocket) {
+          this.server.sockets.sockets
+            .get(friend.socketId)
+            .emit('onlineUserEvent', {
+              username: user.username,
+              status: USER_STATUS_OFFLINE,
+            });
+        }
+      }
     });
   }
 
-  handleDisconnect(socket: any) {
-    const query = socket.handshake.query;
-    console.log('Disconnect', socket.handshake.query);
-    this.chatService.userDisconnected(query.userName);
-  }
+  async handleConnection(client: Socket, ...args: any[]) {
+    try {
+      const accessToken = parseAccessToken(
+        client.request.headers.authorization,
+      );
+      this.logger.log(`Client auth: ${accessToken}`);
+      const user = await this.userService.updateConnectedSocketId(
+        accessToken,
+        client.id,
+        USER_STATUS_ONLINE,
+      );
 
-  @Bind(MessageBody(), ConnectedSocket())
-  @SubscribeMessage('chat')
-  async handleNewMessage(chat: Chat, sender: any) {
-    console.log('New Chat', chat);
-    await this.chatService.saveChat(chat);
-    sender.emit('newChat', chat);
-    sender.broadcast.emit('newChat', chat);
-    await this.chatService.sendMessagesToOfflineUsers(chat);
+      const friendsList = await this.userService.getFriendsList(user.friends);
+      friendsList.forEach((friend) => {
+        if (user.friends.find((username) => username === friend.username)) {
+          const friendSocket = this.server.sockets.sockets.get(friend.socketId);
+          if (friendSocket) {
+            this.server.sockets.sockets
+              .get(friend.socketId)
+              .emit('onlineUserEvent', {
+                username: user.username,
+                status: USER_STATUS_ONLINE,
+              });
+          }
+        }
+      });
+    } catch (error) {
+      client.disconnect(true);
+      this.logger.log(`[ERROR]Client disconnected: ${client.id}`);
+      this.logger.log(`[ERROR]Client disconnected: ${error}`);
+    }
   }
 }

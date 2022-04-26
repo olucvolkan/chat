@@ -22,6 +22,7 @@ COPY package*.json ./
 COPY . ./
 COPY --from=0 /usr/src/app/dist ./dist
 
-EXPOSE 8081
+EXPOSE 8080
+EXPOSE 4000
 
 CMD ["node", "dist/src/main"]
