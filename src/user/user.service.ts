@@ -10,7 +10,6 @@ export class UserService {
   async addFriends(username, friends: string[]) {
     const user = await this.userRepository.findOneByUserName(username);
     user.friends.push(...friends);
-    console.log(user);
     return await this.userRepository.update(user);
   }
 

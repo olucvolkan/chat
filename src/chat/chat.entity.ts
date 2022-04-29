@@ -16,9 +16,9 @@ export class Chat {
   sender: string;
 
   @Prop({
-    required: [true, 'Recepient is required'],
+    required: [true, 'recipient is required'],
   })
-  recepient: string;
+  recipient: string;
 
   @Prop({
     required: [true, 'Time is required'],

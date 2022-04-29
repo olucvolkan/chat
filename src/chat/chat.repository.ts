@@ -1,7 +1,7 @@
 import { Model } from 'mongoose';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Chat, ChatDocument } from 'src/chat/chat.entity';
+import { Chat, ChatDocument } from './chat.entity';
 import { User } from '../user/user.entity';
 
 @Injectable()
@@ -18,15 +18,12 @@ export class ChatRepository {
     return this.chatModel.find().exec();
   }
 
-  findAllUnReadMessageByUser(
+  findAllMessageByReadStatus(
     recipient: User,
     isRead: boolean,
   ): Promise<Chat[]> {
     return this.chatModel
-      .find()
-      .where('recipient')
-      .equals(recipient.username)
-      .where('isRead', isRead)
+      .find({ recipient: recipient.username, isRead: isRead })
       .exec();
   }
 }

@@ -1,7 +1,6 @@
 import { Model } from 'mongoose';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Chat, ChatDocument } from 'src/chat/chat.entity';
 import { User, UserDocument } from './user.entity';
 
 @Injectable()
@@ -10,7 +9,6 @@ export class UserRepository {
 
   async save(user: User): Promise<User> {
     const userModel = new this.userModel(user);
-    console.log(userModel);
     userModel.save();
     return userModel;
   }
@@ -18,7 +16,6 @@ export class UserRepository {
   async update(user: User): Promise<User> {
     const userModel = new this.userModel(user);
     userModel.updateOne(user).exec();
-    console.log(userModel);
     return userModel;
   }
 
@@ -28,15 +25,6 @@ export class UserRepository {
 
   findOneByToken(token: string): Promise<User> {
     return this.userModel.findOne({ token: token }).exec();
-  }
-
-  async findUserFriendList(token: string) {
-    return await this.userModel
-      .find()
-      .select('friends')
-      .where('token')
-      .equals(token)
-      .exec();
   }
 
   getFriendList(userNameList: string[]) {
