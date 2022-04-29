@@ -24,6 +24,6 @@ You must add  user token to header and you must add listener.
 [![](screenshot/screenshot_3.png)]
 
 Everything is working well. You can try all scenario.
-You can see examples of all scenarios in the video(caseTest.mov.zip). Actually, I wrote an e2e test, but it was constantly falling on timeout, I couldn't find the reason, so I wanted to show it by taking a video.
+You can see examples of all scenarios in the [video](https://youtu.be/dE8b4maCXN4). Actually, I wrote an e2e test, but it was constantly falling on timeout, I couldn't find the reason, so I wanted to show it by taking a video.
 
 
